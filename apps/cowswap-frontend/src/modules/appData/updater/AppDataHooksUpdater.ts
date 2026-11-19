@@ -40,14 +40,13 @@ export function AppDataHooksUpdater(): null {
   const inputCurrencyAddress = tradeState?.inputCurrency ? getCurrencyAddress(tradeState.inputCurrency) : undefined
 
   /**
-   * Reset appDataHooks every time sellToken changes
+   * Forget the permit of the previous sellToken; the effect below rebuilds appDataHooks without it
    */
   useEffect(() => {
     if (!inputCurrencyAddress) return
 
-    updateAppDataHooks(undefined)
     setPermitHook(undefined)
-  }, [inputCurrencyAddress, updateAppDataHooks])
+  }, [inputCurrencyAddress])
 
   useEffect(() => {
     const preInteractionHooks = (preHooks || []).map<TypedCowHook>((hookDetails) =>
