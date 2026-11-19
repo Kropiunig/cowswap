@@ -38,10 +38,8 @@ export function useLimitOrdersTradeCallback(
   const safeBundleFlowContext = useSafeBundleFlowContext(tradeContext)
   const isSafeBundle = useIsSafeApprovalBundle(tradeContext?.postOrderParams.inputAmount)
   const canUsePermit = Boolean(tradeContext?.allowsOffchainSigning && isSupportedPermitInfo(tradeContext.permitInfo))
-  // Temporary: keep limit-order bundles Safe-only until EIP-5792 order lifecycle tracking lands.
   // Solana has no Safe-wallet/bundling concept — same precedence swap's own dispatcher gives it.
-  const shouldUseSafeBundle =
-    !isSolana && isSafeBundle && Boolean(tradeContext?.postOrderParams.isSafeWallet) && !canUsePermit
+  const shouldUseSafeBundle = !isSolana && isSafeBundle && !canUsePermit
   const analytics = useTradeFlowAnalytics()
   const solanaFlowOptions = useSolanaFlowOptions()
 

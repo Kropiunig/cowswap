@@ -285,6 +285,25 @@ describe('useHandleOrderPlacement', () => {
     expect(navigateToOrdersTableTab).toHaveBeenCalledWith(OrderTabId.OPEN)
   })
 
+  it('reveals a bundled order in the Signing tab, where it waits for the approve + presign batch', async () => {
+    mockUseIsSafeApprovalBundle.mockReturnValue(true)
+    const bundleContext = { postOrderParams: { ...tradeContextMock.postOrderParams, isSafeWallet: false } } as never
+    mockUseTradeFlowContext.mockImplementation(() => bundleContext)
+    mockUseSafeBundleFlowContext.mockImplementation(() => bundleContext)
+
+    const { result } = renderHook(
+      () => useHandleOrderPlacement(priceImpactMock, defaultLimitOrdersSettings, tradeConfirmActions),
+      { wrapper },
+    )
+    await act(async () => {
+      await result.current.callback()
+    })
+
+    expect(mockSafeBundleFlow).toHaveBeenCalled()
+    expect(result.current.isSafeApprovalBundle).toBe(true)
+    expect(revealOrderInOrdersTable).toHaveBeenCalledWith('0xOrderHash', OrderTabId.SIGNING)
+  })
+
   it('uses the regular permit flow instead of an approval bundle', async () => {
     mockUseIsSafeApprovalBundle.mockReturnValue(true)
     const permitTradeContext = {

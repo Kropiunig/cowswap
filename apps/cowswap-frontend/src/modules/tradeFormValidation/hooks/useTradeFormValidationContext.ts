@@ -8,7 +8,6 @@ import { Currency, Token } from '@cowprotocol/currency'
 import { useENSAddress } from '@cowprotocol/ens'
 import { useIsTradeUnsupported, useIsXstockToken, useTryFindToken } from '@cowprotocol/tokens'
 import {
-  isSafeWalletAtom,
   useGnosisSafeInfo,
   useIsRestoringConnection,
   useIsTxBundlingSupported,
@@ -75,7 +74,6 @@ export function useTradeFormValidationContext(): TradeFormValidationCommonContex
   const isOutputCurrencyXstock = useIsXstockToken(getNonNativeCurrency(outputCurrency))
 
   const isBundlingSupported = useIsTxBundlingSupported()
-  const isSafeWallet = useAtomValue(isSafeWalletAtom)
   const isWrapUnwrap = useIsWrapOrUnwrap()
   const { allowsOffchainSigning, isSupportedWallet } = useWalletDetails()
   const gnosisSafeInfo = useGnosisSafeInfo()
@@ -88,11 +86,8 @@ export function useTradeFormValidationContext(): TradeFormValidationCommonContex
 
   const isSafeReadonlyUser = gnosisSafeInfo?.isReadOnly === true
 
-  // Temporary: keep limit-order bundles Safe-only until EIP-5792 order lifecycle tracking lands.
-  const isBundlingSupportedForContext =
-    tradeType === TradeType.LIMIT_ORDER ? isSafeWallet && isBundlingSupported : isBundlingSupported
   const isApproveRequired = useIsApprovalOrPermitRequired({
-    isBundlingSupportedOrEnabledForContext: isBundlingSupportedForContext,
+    isBundlingSupportedOrEnabledForContext: isBundlingSupported,
     allowsOffchainSigning,
   }).reason
 

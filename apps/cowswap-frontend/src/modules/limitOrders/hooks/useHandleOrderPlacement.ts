@@ -55,9 +55,8 @@ export function useHandleOrderPlacement(
   const store = useStore()
   const setPartiallyFillableOverride = useSetAtom(partiallyFillableOverrideAtom)
   // tx bundling stuff
-  const isSafeBundle = useIsSafeApprovalBundle(tradeContext?.postOrderParams.inputAmount)
   const canUsePermit = Boolean(tradeContext?.allowsOffchainSigning && isSupportedPermitInfo(tradeContext.permitInfo))
-  const isSafeApprovalBundle = isSafeBundle && Boolean(tradeContext?.postOrderParams.isSafeWallet) && !canUsePermit
+  const isSafeApprovalBundle = useIsSafeApprovalBundle(tradeContext?.postOrderParams.inputAmount) && !canUsePermit
   const alternativeModalAnalytics = useAlternativeModalAnalytics()
   const isSmartContractWallet = useAtomValue(isSmartContractWalletAtom)
 
@@ -84,7 +83,7 @@ export function useHandleOrderPlacement(
         // Close receipt modal
         closeReceiptModal()
 
-        const ordersTableTab = isSmartContractWallet ? OrderTabId.SIGNING : OrderTabId.OPEN
+        const ordersTableTab = isSmartContractWallet || isSafeApprovalBundle ? OrderTabId.SIGNING : OrderTabId.OPEN
         const orderId = typeof orderHash === 'string' ? orderHash : store.get(tradeConfirmStateAtom).transactionHash
         setPlacedOrderHighlight({ orderId, tabId: ordersTableTab })
 
@@ -127,6 +126,7 @@ export function useHandleOrderPlacement(
     hideAlternativeOrderModal,
     alternativeModalAnalytics,
     isSmartContractWallet,
+    isSafeApprovalBundle,
     chainId,
   ])
 

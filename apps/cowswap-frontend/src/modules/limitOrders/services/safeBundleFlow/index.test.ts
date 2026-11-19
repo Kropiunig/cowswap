@@ -2,6 +2,8 @@ import { maxUint256 } from 'viem'
 
 import { CurrencyAmount, Token } from '@cowprotocol/currency'
 
+import { partialOrderUpdate } from 'legacy/state/orders/utils'
+
 import { buildApproveTx } from 'modules/operations/bundle/buildApproveTx'
 import { shouldZeroApprove } from 'modules/zeroApproval'
 
@@ -69,6 +71,7 @@ describe('limit orders safeBundleFlow - Send analytics payload', () => {
     quoteId: number | undefined,
     allowsOffchainSigning: boolean,
     amountToApprove?: bigint,
+    isSafeWallet = true,
   ): SafeBundleFlowContext {
     return {
       chainId: 1,
@@ -96,13 +99,18 @@ describe('limit orders safeBundleFlow - Send analytics payload', () => {
         partiallyFillable: false,
         appData: { fullAppData: '{}', doc: {} },
         quoteId,
-        isSafeWallet: true,
+        isSafeWallet,
       },
     } as unknown as SafeBundleFlowContext
   }
 
-  function run(quoteId: number | undefined, allowsOffchainSigning: boolean, amountToApprove?: bigint): Promise<string> {
-    return safeBundleFlow(buildParams(quoteId, allowsOffchainSigning, amountToApprove), {
+  function run(
+    quoteId: number | undefined,
+    allowsOffchainSigning: boolean,
+    amountToApprove?: bigint,
+    isSafeWallet?: boolean,
+  ): Promise<string> {
+    return safeBundleFlow(buildParams(quoteId, allowsOffchainSigning, amountToApprove, isSafeWallet), {
       priceImpact: { priceImpact: undefined } as never,
       settingsState: {} as never,
       confirmPriceImpactWithoutFee: jest.fn().mockResolvedValue(true),
@@ -148,5 +156,33 @@ describe('limit orders safeBundleFlow - Send analytics payload', () => {
 
     expect(buildApproveTx).toHaveBeenCalledWith(expect.objectContaining({ amountToApprove: maxUint256 }))
     expect(shouldZeroApprove).toHaveBeenCalledWith(expect.objectContaining({ amountToApprove: maxUint256 }))
+  })
+
+  describe('presign batch reference stored on the order', () => {
+    it('stores the Safe tx hash for a Safe wallet', async () => {
+      await run(123, false, undefined, true)
+
+      expect(partialOrderUpdate).toHaveBeenCalledWith(
+        {
+          chainId: 1,
+          order: { id: '0xorder', presignGnosisSafeTxHash: '0xsafetxhash', isHidden: false },
+          isSafeWallet: true,
+        },
+        expect.anything(),
+      )
+    })
+
+    it('stores the EIP-5792 bundle id for a non-Safe wallet with atomic batching', async () => {
+      await run(123, false, undefined, false)
+
+      expect(partialOrderUpdate).toHaveBeenCalledWith(
+        {
+          chainId: 1,
+          order: { id: '0xorder', presignBundleId: '0xsafetxhash', isHidden: false },
+          isSafeWallet: false,
+        },
+        expect.anything(),
+      )
+    })
   })
 })

@@ -2,6 +2,8 @@
 import { useSetAtom } from 'jotai'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
+import { useConfig } from 'wagmi'
+
 import { getExplorerOrderLink, normalizeError, timeSinceInSeconds } from '@cowprotocol/common-utils'
 import { areAddressesEqual, EnrichedOrder, EthflowData, SupportedChainId as ChainId } from '@cowprotocol/cow-sdk'
 import { UiOrderType } from '@cowprotocol/types'
@@ -55,6 +57,7 @@ import { getOrder } from 'api/cowProtocol'
 import { getIsBridgeOrder } from 'common/utils/getIsBridgeOrder'
 import { getUiOrderType } from 'utils/orderUtils/getUiOrderType'
 
+import { createPresignBundleTracker, UpdatePresignBundleOrders } from './services/presignBundleTracker.service'
 import {
   fetchAndClassifyOrder,
   getFulfilledOrderUidsForSurplusQueue,
@@ -99,6 +102,7 @@ interface UpdateOrdersParams {
   getSafeTxInfo: GetSafeTxInfo
   safeNonce: number | undefined
   allTransactions: ReturnType<typeof useAllTransactions>
+  updatePresignBundleOrders: UpdatePresignBundleOrders
   markPollComplete?: (chainId: ChainId) => void
 }
 
@@ -150,6 +154,8 @@ export function PendingOrdersUpdater(): null {
   const updatePresignGnosisSafeTx = useUpdatePresignGnosisSafeTx()
   const allTransactions = useAllTransactions()
   const getSafeTxInfo = useGetSafeTxInfo()
+  const config = useConfig()
+  const updatePresignBundleOrders = useMemo(() => createPresignBundleTracker(config), [config])
   const getSerializedBridgeOrder = useGetSerializedBridgeOrder()
   const getSerializedBridgeOrderRef = useRef(getSerializedBridgeOrder)
 
@@ -225,6 +231,7 @@ export function PendingOrdersUpdater(): null {
           getSafeTxInfo,
           safeNonce,
           allTransactions,
+          updatePresignBundleOrders,
           markPollComplete: shouldMarkCompletion ? markPollComplete : undefined,
         }).finally(() => {
           isUpdating.current = false
@@ -245,6 +252,7 @@ export function PendingOrdersUpdater(): null {
       getSafeTxInfo,
       safeNonce,
       allTransactions,
+      updatePresignBundleOrders,
       markPollComplete,
     ],
   )
@@ -388,6 +396,7 @@ async function _updateOrders({
   getSafeTxInfo,
   safeNonce,
   allTransactions,
+  updatePresignBundleOrders,
   markPollComplete,
 }: UpdateOrdersParams): Promise<void> {
   // Only check pending orders of current connected account
@@ -408,7 +417,7 @@ async function _updateOrders({
 
   // Group resolved promises by status
   // Only pick the status that are final
-  const { fulfilled, expired, cancelled, presigned } = unfilteredOrdersData.reduce<
+  const { fulfilled, expired, cancelled, presigned, presignaturePending } = unfilteredOrdersData.reduce<
     Record<OrderTransitionStatus, OrderTransitionData[]>
   >(
     (acc, orderData) => {
@@ -498,6 +507,16 @@ async function _updateOrders({
     cancelOrdersBatch,
     safeNonce,
   )
+  // Only orders the order book still reports as unsigned: the transitions above already moved the
+  // rest (e.g. presigned -> PENDING), and failing one of those here would undo that move.
+  const awaitingPresignatureIds = new Set(presignaturePending.map(({ order }) => order.uid))
+
+  await updatePresignBundleOrders({
+    chainId,
+    orders: orders.filter(({ id }) => awaitingPresignatureIds.has(id)),
+    isSafeWallet,
+    invalidateOrdersBatch,
+  })
   await _updateCreatingOrders(chainId, orders, isSafeWallet, addOrUpdateOrders, invalidateAbandonedCreatingOrdersBatch)
 
   markPollComplete?.(chainId)

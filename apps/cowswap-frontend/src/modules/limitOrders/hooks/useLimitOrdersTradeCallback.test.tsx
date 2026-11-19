@@ -287,6 +287,19 @@ describe('useLimitOrdersTradeCallback', () => {
       expect(mockTradeFlow).not.toHaveBeenCalled()
     })
 
+    it('uses the safe-bundle flow for a non-Safe wallet with atomic batching (EIP-7702) when no permit is available', async () => {
+      mockUseIsSafeApprovalBundle.mockReturnValue(true)
+      const bundleContextMock = { postOrderParams: { isSafeWallet: false } } as never
+      mockUseSafeBundleFlowContext.mockReturnValue(bundleContextMock)
+
+      const { result } = renderTradeCallback()
+
+      await result.current()
+
+      expect(mockSafeBundleFlow).toHaveBeenCalledWith(bundleContextMock, tradeFlowParamsMock)
+      expect(mockTradeFlow).not.toHaveBeenCalled()
+    })
+
     it('uses the regular tradeFlow instead of a safe bundle when the wallet supports permit', async () => {
       mockUseIsSafeApprovalBundle.mockReturnValue(true)
       mockUseTradeFlowContext.mockReturnValue({

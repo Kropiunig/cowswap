@@ -181,7 +181,7 @@ export async function safeBundleFlow(
         chainId: chainId,
         order: {
           id: order.id,
-          presignGnosisSafeTxHash: safeTxHash,
+          ...(isSafeWallet ? { presignGnosisSafeTxHash: safeTxHash } : { presignBundleId: safeTxHash }),
           isHidden: false,
         },
         isSafeWallet,

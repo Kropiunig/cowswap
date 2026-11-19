@@ -75,6 +75,7 @@ export interface BaseOrder extends OrderCreation {
   // Wallet specific
   presignGnosisSafeTxHash?: string // Gnosis Safe tx
   presignGnosisSafeTx?: SafeMultisigTransactionResponse // Gnosis Safe transaction info
+  presignBundleId?: string // EIP-5792 id of the approve + presign batch, for atomic-batch wallets that are not a Safe
 
   // Sell amount before the fee applied - necessary for later calculations (unfilled orders)
   sellAmountBeforeFee: string
